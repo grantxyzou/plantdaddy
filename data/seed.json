@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "generatedOn": "2026-08-08",
+  "note": "Baseline condition of each plant as of the date above, assessed from photos. Use this as seed data and as the 'before' reference for photo-based state comparisons going forward.",
+  "plants": [
+    {
+      "id": "strelitzia-001",
+      "specimenNo": "001",
+      "latinName": "Strelitzia nicolai",
+      "commonName": "Bird of Paradise (young)",
+      "identificationConfidence": "moderate",
+      "potType": "black plastic nursery pot",
+      "light": { "level": "bright indirect to some direct sun", "notes": "South/east-facing window preferred" },
+      "water": { "frequencyDays": { "min": 7, "max": 10 }, "notes": "Let top 1-2in of soil dry out between waterings; do not overwater" },
+      "soil": { "type": "standard well-draining potting mix", "repotNotes": "Repot when rootbound, ideally spring" },
+      "fertilizer": { "frequencyDays": 30, "activeSeason": "spring-summer", "type": "balanced liquid fertilizer, diluted" },
+      "humidity": "average home humidity, tolerant",
+      "baselineHealth": {
+        "status": "healthy",
+        "notes": "Leaves glossy, deep green, upright. No pest or disease signs observed."
+      },
+      "baselinePhotoDescription": "Large glossy oblong-lanceolate leaves radiating from base, no leaf splits yet (young plant), deep prominent central rib."
+    },
+    {
+      "id": "philo-bipennifolium-002",
+      "specimenNo": "002",
+      "latinName": "Philodendron bipennifolium",
+      "commonName": "Fiddleleaf / Horsehead Philodendron",
+      "identificationConfidence": "moderate-high",
+      "potType": "plastic nursery pot on moss pole",
+      "light": { "level": "bright indirect", "notes": "No direct sun, leaves can scorch" },
+      "water": { "frequencyDays": { "min": 7, "max": 10 }, "notes": "Water when top 2in of soil are dry" },
+      "soil": { "type": "aroid mix (well-draining, chunky)", "repotNotes": "Support with moss pole as it climbs" },
+      "fertilizer": { "frequencyDays": 35, "activeSeason": "spring-summer", "type": "diluted balanced fertilizer" },
+      "humidity": "average or higher preferred",
+      "baselineHealth": {
+        "status": "watch",
+        "notes": "Somewhat leggy/sparse growth; visible woody stem sections near the pole (normal aerial stem, not damage). More light or a light prune could help it fill out."
+      },
+      "baselinePhotoDescription": "3-lobed 'horse-head' shaped leaves, climbing on a moss pole, some bare stem visible between leaves."
+    },
+    {
+      "id": "pothos-manjula-003",
+      "specimenNo": "003",
+      "latinName": "Epipremnum aureum 'Manjula'",
+      "commonName": "Variegated Pothos (Manjula)",
+      "identificationConfidence": "moderate",
+      "potType": "hanging pot",
+      "light": { "level": "bright indirect", "notes": "Needs good light or white variegation may fade to green" },
+      "water": { "frequencyDays": { "min": 7, "max": 9 }, "notes": "Let soil dry out well between waterings" },
+      "soil": { "type": "standard well-draining potting mix" },
+      "fertilizer": { "frequencyDays": 30, "activeSeason": "spring-summer", "type": "balanced fertilizer" },
+      "humidity": "average",
+      "baselineHealth": {
+        "status": "watch",
+        "notes": "A few small holes/spots on leaves. Check leaf undersides for pests (spider mites, mealybugs) at next watering."
+      },
+      "baselinePhotoDescription": "Hanging pothos with heavy white/green marbled variegation, slightly ruffled leaf edges, a few small holes in leaves."
+    },
+    {
+      "id": "maranta-004",
+      "specimenNo": "004",
+      "latinName": "Maranta leuconeura 'Fascinator'",
+      "commonName": "Red Prayer Plant",
+      "identificationConfidence": "high",
+      "potType": "white ceramic pot",
+      "light": { "level": "medium indirect", "notes": "Direct sun bleaches leaf color" },
+      "water": { "frequencyDays": { "min": 4, "max": 6 }, "notes": "Keep evenly moist, not soggy. Use filtered/distilled water if possible - sensitive to fluoride/salts." },
+      "soil": { "type": "standard potting mix with good moisture retention" },
+      "fertilizer": { "frequencyDays": 28, "activeSeason": "spring-summer", "type": "diluted liquid fertilizer" },
+      "humidity": "high preferred (pebble tray or humidifier helps)",
+      "baselineHealth": {
+        "status": "watch",
+        "notes": "One leaf tip browned/crispy at the base - likely low humidity or mineral buildup from tap water."
+      },
+      "baselinePhotoDescription": "Pink/red veined leaves over dark green with pale green midrib, one leaf tip browned."
+    },
+    {
+      "id": "philo-heart-pot-005",
+      "specimenNo": "005",
+      "latinName": "Philodendron hederaceum",
+      "commonName": "Heartleaf Philodendron (potted)",
+      "identificationConfidence": "high",
+      "potType": "gray plastic pot",
+      "light": { "level": "medium to bright indirect" },
+      "water": { "frequencyDays": { "min": 7, "max": 10 }, "notes": "Let top 1-2in dry between waterings" },
+      "soil": { "type": "standard well-draining potting mix" },
+      "fertilizer": { "frequencyDays": 30, "activeSeason": "spring-summer", "type": "light balanced feed" },
+      "humidity": "average",
+      "baselineHealth": {
+        "status": "attention",
+        "notes": "One leaf fully yellow and drooping - likely overwatering / poor drainage. Let dry out more before next watering; check pot drainage. OK to remove leaf if it doesn't recover."
+      },
+      "baselinePhotoDescription": "Small heart-shaped leaf plant, one leaf fully yellow and curled/drooping, one healthy green leaf."
+    },
+    {
+      "id": "philo-heart-cutting-006",
+      "specimenNo": "006",
+      "latinName": "Philodendron hederaceum",
+      "commonName": "Heartleaf Cutting (water propagation)",
+      "identificationConfidence": "high",
+      "potType": "glass bottle, water propagation",
+      "light": { "level": "bright indirect" },
+      "water": { "frequencyDays": { "min": 5, "max": 7 }, "notes": "Refresh water fully every 5-7 days to keep it oxygenated" },
+      "soil": { "type": "none - water propagation; pot up in standard mix once roots are 1-2in" },
+      "fertilizer": { "frequencyDays": 0, "activeSeason": "n/a", "type": "none needed until potted" },
+      "humidity": "average",
+      "baselineHealth": {
+        "status": "healthy",
+        "notes": "Roots visible and developing - viable cutting."
+      },
+      "baselinePhotoDescription": "Heartleaf cutting rooting in a glass bottle on a mantel, visible root growth in water."
+    },
+    {
+      "id": "orchid-007",
+      "specimenNo": "007",
+      "latinName": "Phalaenopsis sp.",
+      "commonName": "Orchid Keiki (baby plant)",
+      "identificationConfidence": "high",
+      "potType": "small clear/nursery pot with bark or moss",
+      "light": { "level": "bright indirect", "notes": "East-facing windowsill ideal, no direct sun" },
+      "water": { "frequencyDays": { "min": 6, "max": 8 }, "notes": "Water only when aerial roots turn silvery-grey; bright green = still hydrated" },
+      "soil": { "type": "orchid bark mix once potted" },
+      "fertilizer": { "frequencyDays": 14, "activeSeason": "while actively growing", "type": "quarter-strength orchid fertilizer" },
+      "humidity": "high (50%+)",
+      "baselineHealth": {
+        "status": "healthy",
+        "notes": "Aerial roots actively growing outward - establishing well."
+      },
+      "baselinePhotoDescription": "Orchid keiki with thick strap leaves and chunky silvery-green aerial roots, held near a kitchen sink."
+    },
+    {
+      "id": "calathea-008",
+      "specimenNo": "008",
+      "latinName": "Calathea lancifolia",
+      "commonName": "Rattlesnake Plant",
+      "identificationConfidence": "high",
+      "potType": "gray ceramic pot",
+      "light": { "level": "medium indirect" },
+      "water": { "frequencyDays": { "min": 5, "max": 7 }, "notes": "Keep evenly moist; use filtered/distilled water to avoid tip burn" },
+      "soil": { "type": "standard potting mix with good moisture retention" },
+      "fertilizer": { "frequencyDays": 28, "activeSeason": "spring-summer", "type": "diluted balanced fertilizer" },
+      "humidity": "high (50-60%+)",
+      "baselineHealth": {
+        "status": "attention",
+        "notes": "Several leaf tips browned/crispy across the plant - classic low-humidity or tap-mineral stress. Switch to filtered water, boost humidity, trim dead tips."
+      },
+      "baselinePhotoDescription": "Wavy lance-shaped leaves, green with dark oval spots on top, deep burgundy undersides; multiple crispy brown tips."
+    },
+    {
+      "id": "snake-laurentii-009",
+      "specimenNo": "009",
+      "latinName": "Sansevieria trifasciata 'Laurentii'",
+      "commonName": "Variegated Snake Plant",
+      "identificationConfidence": "high",
+      "potType": "ceramic pot",
+      "light": { "level": "very adaptable - bright indirect to low light" },
+      "water": { "frequencyDays": { "min": 14, "max": 28 }, "notes": "Let soil dry out completely. Overwatering/root rot is the main risk." },
+      "soil": { "type": "well-draining succulent/cactus-style mix" },
+      "fertilizer": { "frequencyDays": 60, "activeSeason": "spring-summer", "type": "light feed, 1-2x per season" },
+      "humidity": "not a concern",
+      "baselineHealth": {
+        "status": "healthy",
+        "notes": "Upright, firm, well-variegated - no signs of stress."
+      },
+      "baselinePhotoDescription": "Tall sword-shaped leaves with dark green mottling and bright yellow margins."
+    }
+  ]
+}
