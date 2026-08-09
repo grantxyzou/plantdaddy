@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "api/diagnose.js": { "maxDuration": 60 }
+  },
   "headers": [
     {
       "source": "/sw.js",

@@ -7,6 +7,7 @@ import { collectionStatus, careStreak, updateBadge } from '../schedule.js';
 import { prefersFilteredWater } from '../care-guides.js';
 import { blobURL } from '../photos.js';
 import { plantThumb } from '../ui-thumb.js';
+import { aiChip } from '../diagnose.js';
 import { el, mount, toast, dueBadge, healthChip, daysAgo } from '../ui.js';
 
 export async function renderDashboard(app) {
@@ -182,7 +183,9 @@ function feedCard(row, app) {
 function adviceCard(row, app) {
   const { plant, health, photoURL } = row;
   return el('article', { class: `specimen advice-card ${health.status}` },
-    el('div', { class: 'advice-title' }, `No. ${plant.specimenNo} · ${health.status === 'attention' ? 'needs attention' : 'keep an eye on'}`),
+    el('div', { class: 'advice-title' },
+      `No. ${plant.specimenNo} · ${health.status === 'attention' ? 'needs attention' : 'keep an eye on'}`,
+      health.source === 'ai' ? [' ', aiChip()] : null),
     el('div', { class: 'card-row' },
       plantThumb(plant, photoURL),
       el('div', { class: 'card-main' },

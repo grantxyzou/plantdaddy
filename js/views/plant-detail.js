@@ -3,8 +3,9 @@
 
 import {
   getPlant, addLog, logsForPlant, currentHealth, healthHistory,
-  photosForPlant, addPhoto, deletePhoto, archivePlant, getSettings,
+  photosForPlant, addPhoto, deletePhoto, archivePlant, getSettings, latestPhoto,
 } from '../store.js';
+import { runDiagnosis, aiChip } from '../diagnose.js';
 import { waterStatus, fertilizerStatus, cadenceOf } from '../schedule.js';
 import { guideFor, prefersFilteredWater } from '../care-guides.js';
 import { referenceImage, wikiThumbAt } from '../species-images.js';
@@ -58,9 +59,10 @@ export async function renderPlantDetail(app, id, tab = 'status') {
 
 async function statusTab(body, plant, app) {
   const settings = await getSettings();
-  const [water, fert, logs] = await Promise.all([
-    waterStatus(plant), fertilizerStatus(plant), logsForPlant(plant.id),
+  const [water, fert, logs, photo] = await Promise.all([
+    waterStatus(plant), fertilizerStatus(plant), logsForPlant(plant.id), latestPhoto(plant.id),
   ]);
+  const diagSlot = el('div');
   const lastOf = type => logs.find(l => l.type === type);
   const { min, max } = cadenceOf(plant);
   const filtered = prefersFilteredWater(plant);
@@ -112,6 +114,9 @@ async function statusTab(body, plant, app) {
       noteForm('sunlight', 'e.g. moved to east window', 'Log light'),
     ),
 
+    aiCheckupCard(plant, photo, diagSlot, rerender),
+    diagSlot,
+
     el('article', { class: 'specimen' },
       el('h2', { class: 'on-card', style: 'margin-top:0' }, 'Requirements'),
       el('dl', { class: 'kv' },
@@ -142,6 +147,32 @@ async function statusTab(body, plant, app) {
         }, plant.archived ? 'restore' : 'archive'),
       ),
     ),
+  );
+}
+
+// The AI check-up entry point: diagnoses the latest photo in context.
+// Shared by the Status tab (CTA card) and reused conceptually by Photos.
+function aiCheckupCard(plant, photo, diagSlot, onSaved) {
+  return el('article', { class: 'specimen diagnosis-cta' },
+    el('h2', { class: 'on-card', style: 'margin-top:0' }, '🩺 AI check-up'),
+    el('p', { style: 'font-size:.92rem' },
+      photo
+        ? `Have the AI doctor look at the latest photo (${fmtDate(photo.ts)}) together with the care log, and suggest what ${plant.commonName} needs.`
+        : 'Add a photo first — then the AI doctor can assess it against the care log.'),
+    el('div', { class: 'row-actions' },
+      photo
+        ? el('button', {
+            class: 'btn-primary',
+            onclick: e => {
+              e.target.disabled = true;
+              runDiagnosis(diagSlot, plant, photo.blob, { onSaved })
+                .finally(() => { e.target.disabled = false; });
+            },
+          }, '🩺 Get AI check-up')
+        : el('a', { class: 'btn', href: `#/plant/${plant.id}/photos` }, '📷 Add a photo'),
+    ),
+    photo ? el('p', { class: 'hint', style: 'margin-bottom:0' },
+      'Sends this one photo to Anthropic’s Claude for analysis. Each check costs the app owner well under a cent.') : null,
   );
 }
 
@@ -197,6 +228,7 @@ async function photosTab(body, plant, app) {
   const photos = await photosForPlant(plant.id);
   const latest = photos[0];
   const oldest = photos[photos.length - 1];
+  const diagSlot = el('div');
 
   const fileInput = el('input', {
     type: 'file', accept: 'image/*', capture: 'environment',
@@ -210,7 +242,7 @@ async function photosTab(body, plant, app) {
     try {
       const blob = await compressImage(file);
       await addPhoto({ plantId: plant.id, blob, note: noteInput.value.trim() });
-      toast('📷 Photo added to the timeline.');
+      toast('📷 Photo added — tap 🩺 Diagnose for an AI check-up.');
       renderPlantDetail(app, plant.id, 'photos');
     } catch (err) {
       toast(`Could not add photo: ${err.message}`);
@@ -223,10 +255,20 @@ async function photosTab(body, plant, app) {
       el('div', { class: 'field' }, noteInput),
       el('div', { class: 'row-actions' },
         el('button', { class: 'btn-primary', onclick: () => fileInput.click() }, '📷 Take / choose photo'),
+        latest ? el('button', {
+          onclick: e => {
+            e.target.disabled = true;
+            runDiagnosis(diagSlot, plant, latest.blob, { onSaved: () => renderPlantDetail(app, plant.id, 'photos') })
+              .finally(() => { e.target.disabled = false; });
+          },
+        }, '🩺 Diagnose latest') : null,
       ),
       fileInput,
-      el('p', { class: 'hint', style: 'margin-bottom:0' }, 'Photos are resized on-device (max 1200px) and stored locally.'),
+      el('p', { class: 'hint', style: 'margin-bottom:0' },
+        'Photos are resized on-device (max 1200px) and stored locally.',
+        latest ? ' Diagnose sends the latest photo to Anthropic’s Claude for analysis.' : ''),
     ),
+    diagSlot,
 
     // progress compare: baseline vs latest
     el('h2', {}, 'Progress'),
@@ -315,6 +357,7 @@ async function historyTab(body, plant, app) {
             TYPE_LABEL[l.type] || l.type,
             l.type === 'health' ? ` → ${l.status}` : '',
             l.method ? ` (${l.method})` : '',
+            l.source === 'ai' ? [' ', aiChip()] : null,
             l.note ? ` — ${l.note}` : '',
           ),
         ),
