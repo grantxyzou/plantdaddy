@@ -1,7 +1,19 @@
-// Service worker: precache the app shell so PlantDaddy opens with no network.
-// Bump VERSION on every deploy to roll the cache.
+// Service worker.
+//
+// Design rule: staleness must be IMPOSSIBLE, and correctness must never
+// depend on a human remembering to bump a version number. So:
+//
+//   • navigations + → network-first with a short timeout. Online, you always
+//     same-origin     get the current code on the very first load; offline (or
+//     app code        on a slow link) it falls straight back to the cache.
+//   • wikimedia     → cache-first (those URLs are immutable).
+//
+// The app is ~120KB of text served with ETags, so revalidation is mostly
+// 304s and costs little. Cache is the offline safety net, never the source
+// of truth. CACHE below is just a housekeeping label — forgetting to bump
+// it can no longer strand anyone on old code.
 
-const VERSION = 'plantdaddy-v3';
+const CACHE = 'plantdaddy-v4';
 
 const SHELL = [
   './',
@@ -19,6 +31,7 @@ const SHELL = [
   'js/species-images.js',
   'js/ui-thumb.js',
   'js/ui.js',
+  'js/update.js',
   'js/views/dashboard.js',
   'js/views/collection.js',
   'js/views/plant-detail.js',
@@ -32,40 +45,85 @@ const SHELL = [
   'icons/icon-maskable-512.png',
 ];
 
+const IMAGE_HOSTS = ['upload.wikimedia.org'];
+const NAV_TIMEOUT_MS = 4000;
+
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(VERSION).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    // cache: 'reload' bypasses the browser HTTP cache, so a precache can
+    // never re-import the very files we are trying to replace.
+    await cache.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== VERSION).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
+    await self.clients.claim();
+  })());
 });
 
-// Cache-first for the shell; network-first (with cache fallback) for anything
-// else. Species reference images from Wikimedia are cached on first view so
-// "what healthy looks like" keeps working offline.
-const IMAGE_HOSTS = ['upload.wikimedia.org'];
+self.addEventListener('message', event => {
+  if (event.data === 'SKIP_WAITING' || event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
+/**
+ * Network-first: always try fresh, fall back to the cache when the network is
+ * slow or gone. `cache: 'no-cache'` forces revalidation so the browser's own
+ * HTTP cache can never hand back a stale copy behind our back.
+ */
+async function networkFirst(request, { navigate = false } = {}) {
+  const cache = await caches.open(CACHE);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), NAV_TIMEOUT_MS);
+  try {
+    const res = await fetch(request, { cache: 'no-cache', signal: controller.signal });
+    if (res && res.ok) cache.put(request, res.clone()).catch(() => {});
+    return res;
+  } catch {
+    const cached = await cache.match(request, { ignoreSearch: true });
+    if (cached) return cached;
+    if (navigate) {
+      const shell = await cache.match('index.html');
+      if (shell) return shell;
+    }
+    return Response.error();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function cacheFirst(request) {
+  const cache = await caches.open(CACHE);
+  const cached = await cache.match(request, { ignoreSearch: true });
+  if (cached) return cached;
+  try {
+    const res = await fetch(request);
+    if (res && (res.ok || res.type === 'opaque')) cache.put(request, res.clone());
+    return res;
+  } catch {
+    return Response.error();
+  }
+}
 
 self.addEventListener('fetch', event => {
   const { request } = event;
   if (request.method !== 'GET') return;
+
   const url = new URL(request.url);
-  const cacheable = url.origin === location.origin || IMAGE_HOSTS.includes(url.hostname);
-  event.respondWith(
-    caches.match(request, { ignoreSearch: true }).then(cached =>
-      cached ||
-      fetch(request).then(res => {
-        if (cacheable && (res.ok || res.type === 'opaque')) {
-          const copy = res.clone();
-          caches.open(VERSION).then(cache => cache.put(request, copy));
-        }
-        return res;
-      }).catch(() => url.origin === location.origin ? caches.match('index.html') : Response.error())
-    )
-  );
+
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirst(request, { navigate: true }));
+    return;
+  }
+  if (url.origin === location.origin) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+  if (IMAGE_HOSTS.includes(url.hostname)) {
+    event.respondWith(cacheFirst(request));
+  }
 });
