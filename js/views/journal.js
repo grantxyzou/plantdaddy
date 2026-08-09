@@ -4,7 +4,7 @@ import { allLogs, allPhotos, listPlants } from '../store.js';
 import { blobURL } from '../photos.js';
 import { el, mount, fmtDateTime } from '../ui.js';
 
-const TYPE_LABEL = { water: '💧 watered', soil: '🪴 soil', fertilizer: '🌿 fed', sunlight: '☀️ light', health: '⚕ health', photo: '📷 photo' };
+const TYPE_LABEL = { water: '💧 watered', soil: '🪴 soil', fertilizer: '🌿 fed', sunlight: '☀️ light', health: '⚕ health', photo: '📷 photo', note: '📝 note' };
 
 export async function renderJournal(app) {
   const [logs, photos, plants] = await Promise.all([allLogs(), allPhotos(), listPlants({ includeArchived: true })]);

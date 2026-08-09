@@ -96,6 +96,30 @@ export async function currentHealth(plantId) {
   return history[0] || null;
 }
 
+// ————— doctor's orders tracking —————
+// An "attended" mark is tied to the specific health-log entry that raised
+// the advice, so recording a NEW health note automatically re-opens it.
+
+export async function ackAdvice(plantId, healthLogId, noteText = '') {
+  const p = await getPlant(plantId);
+  if (!p) return;
+  p.adviceAckLogId = healthLogId;
+  p.adviceAckTs = Date.now();
+  await db.put('plants', p);
+  await addLog({
+    plantId, type: 'note',
+    note: `Attended to doctor's orders${noteText ? `: ${noteText.slice(0, 90)}` : ''}`,
+  });
+}
+
+export async function unackAdvice(plantId) {
+  const p = await getPlant(plantId);
+  if (!p) return;
+  delete p.adviceAckLogId;
+  delete p.adviceAckTs;
+  await db.put('plants', p);
+}
+
 // ————— photos —————
 
 export async function addPhoto({ plantId, blob, note = '', ts = Date.now() }) {
@@ -105,6 +129,10 @@ export async function addPhoto({ plantId, blob, note = '', ts = Date.now() }) {
 export async function photosForPlant(plantId) {
   const photos = await db.getAll('photos', 'byPlant', plantId);
   return photos.sort((a, b) => b.ts - a.ts);
+}
+
+export async function latestPhoto(plantId) {
+  return (await photosForPlant(plantId))[0] || null;
 }
 
 export async function allPhotos() {
