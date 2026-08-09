@@ -13,7 +13,7 @@
 // of truth. CACHE below is just a housekeeping label — forgetting to bump
 // it can no longer strand anyone on old code.
 
-const CACHE = 'plantdaddy-v4';
+const CACHE = 'plantdaddy-v5';
 
 const SHELL = [
   './',
@@ -28,6 +28,7 @@ const SHELL = [
   'js/photos.js',
   'js/backup.js',
   'js/care-guides.js',
+  'js/diagnose.js',
   'js/species-images.js',
   'js/ui-thumb.js',
   'js/ui.js',
@@ -114,6 +115,9 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
+
+  // API calls are live-only: never cached, never answered from cache.
+  if (url.origin === location.origin && url.pathname.startsWith('/api/')) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(networkFirst(request, { navigate: true }));

@@ -124,6 +124,14 @@ export async function renderSettings(app) {
       el('p', { class: 'hint' }, 'Force refresh clears cached app files only. Your journal stays put.'),
     ),
 
+    el('section', { class: 'settings-block specimen' },
+      el('h2', { class: 'on-card', style: 'margin-top:0' }, 'AI diagnosis'),
+      el('p', { style: 'font-size:.9rem' },
+        'The 🩺 buttons on each plant send that one photo (nothing else) to Anthropic’s Claude for a visual check-up. Results are suggestions, saved into the health history marked “AI”.'),
+      el('p', { class: 'hint' },
+        'Runs on the deployment owner’s Anthropic API key — set ANTHROPIC_API_KEY in the Vercel dashboard to enable it. Each check costs well under a cent; setting a spend limit in the Anthropic console is a good idea.'),
+    ),
+
     el('section', { class: 'settings-block' },
       el('h2', {}, 'About'),
       el('p', { class: 'muted', style: 'font-size:.85rem' },
