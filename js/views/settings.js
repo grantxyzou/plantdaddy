@@ -59,9 +59,7 @@ export async function renderSettings(app) {
   const field = (label, input, hint) => el('div', { class: 'field' },
     el('label', {}, label), input, hint ? el('span', { class: 'hint' }, hint) : null);
 
-  mount(app, 
-    el('h1', {}, 'Settings'),
-
+  mount(app,
     el('section', { class: 'settings-block specimen' },
       el('h2', { class: 'on-card', style: 'margin-top:0' }, 'Reminders'),
       el('p', { style: 'font-size:.9rem' },

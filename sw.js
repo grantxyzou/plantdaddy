@@ -1,7 +1,7 @@
 // Service worker: precache the app shell so PlantDaddy opens with no network.
 // Bump VERSION on every deploy to roll the cache.
 
-const VERSION = 'plantdaddy-v1';
+const VERSION = 'plantdaddy-v2';
 
 const SHELL = [
   './',

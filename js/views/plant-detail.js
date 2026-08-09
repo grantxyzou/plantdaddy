@@ -8,7 +8,7 @@ import {
 import { waterStatus, fertilizerStatus, cadenceOf } from '../schedule.js';
 import { guideFor, prefersFilteredWater } from '../care-guides.js';
 import { compressImage, blobURL } from '../photos.js';
-import { el, mount, toast, fmtDate, fmtDateTime, daysAgo, healthChip, dueBadge, confirmDialog } from '../ui.js';
+import { el, mount, setHeader, toast, fmtDate, fmtDateTime, daysAgo, healthChip, dueBadge, confirmDialog } from '../ui.js';
 
 const TABS = [
   ['status', 'Status'],
@@ -24,13 +24,13 @@ export async function renderPlantDetail(app, id, tab = 'status') {
     return;
   }
   const health = await currentHealth(id);
+  setHeader({ title: plant.commonName, back: '#/plants' });
 
   const body = el('div');
   const render = { status: statusTab, guide: guideTab, photos: photosTab, history: historyTab }[tab] || statusTab;
 
-  mount(app, 
+  mount(app,
     el('div', { class: 'detail-head' },
-      el('a', { class: 'backlink', href: '#/plants' }, '← collection'),
       el('h1', { class: 'latin' }, plant.latinName),
       el('div', { class: 'common' },
         `${plant.commonName} · No. ${plant.specimenNo}`,

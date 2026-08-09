@@ -28,9 +28,9 @@ export async function renderCollection(app) {
     );
   }
 
-  mount(app, 
-    el('h1', {}, `Collection · ${plants.length} specimens`),
-    el('div', { class: 'row-actions', style: 'margin:0 0 1rem' },
+  mount(app,
+    el('div', { class: 'row-actions', style: 'margin:.25rem 0 1rem; align-items:center; justify-content:space-between' },
+      el('span', { class: 'mono muted', style: 'font-size:.85rem' }, `${plants.length} specimens`),
       el('a', { class: 'btn btn-primary', href: '#/plants/new' }, '+ New specimen'),
     ),
     ...cards,

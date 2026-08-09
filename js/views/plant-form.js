@@ -35,8 +35,7 @@ export async function renderPlantForm(app, id) {
   const field = (label, input, hint) => el('div', { class: 'field' },
     el('label', {}, label), input, hint ? el('span', { class: 'hint' }, hint) : null);
 
-  mount(app, 
-    el('a', { class: 'backlink', href: existing ? `#/plant/${existing.id}` : '#/plants' }, '← back'),
+  mount(app,
     el('h1', {}, existing ? `Edit No. ${specimenNo}` : `New specimen · No. ${specimenNo}`),
     el('form', {
       class: 'sheet specimen',

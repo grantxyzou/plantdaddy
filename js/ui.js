@@ -24,6 +24,22 @@ export function mount(root, ...children) {
     .filter(c => c !== null && c !== undefined && c !== false));
 }
 
+// Top bar state: page title (where am I), back button (how do I leave),
+// and the brand leaf on the home screen.
+export function setHeader({ title, back = null, brand = false }) {
+  document.getElementById('page-title-text').textContent = title;
+  // toggleAttribute, not .hidden — SVG elements lack the hidden property
+  document.getElementById('title-leaf').toggleAttribute('hidden', !brand);
+  const backBtn = document.getElementById('back-btn');
+  if (back) {
+    backBtn.hidden = false;
+    backBtn.setAttribute('href', back);
+  } else {
+    backBtn.hidden = true;
+  }
+  document.title = brand ? 'PlantDaddy · Field Journal' : `${title} · PlantDaddy`;
+}
+
 export function toast(message) {
   const t = document.getElementById('toast');
   t.textContent = message;

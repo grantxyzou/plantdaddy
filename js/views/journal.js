@@ -15,8 +15,7 @@ export async function renderJournal(app) {
     ...photos.map(p => ({ ...p, kind: 'photo', type: 'photo' })),
   ].sort((a, b) => b.ts - a.ts).slice(0, 200);
 
-  mount(app, 
-    el('h1', {}, 'Journal'),
+  mount(app,
     entries.length ? el('ul', { class: 'tl' },
       entries.map(e =>
         el('li', { class: `t-${e.type}` },
