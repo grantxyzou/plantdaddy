@@ -1,0 +1,16 @@
+{
+  "name": "PlantDaddy — Field Journal",
+  "short_name": "PlantDaddy",
+  "description": "A field journal for the windowsill: watering reminders, care advice, and photo progress for your plant collection.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#16241b",
+  "theme_color": "#16241b",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

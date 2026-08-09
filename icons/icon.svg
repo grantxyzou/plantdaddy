@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="35%" cy="25%" r="90%">
+      <stop offset="0%" stop-color="#27402f"/>
+      <stop offset="100%" stop-color="#16241b"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <rect x="24" y="24" width="464" height="464" rx="80" fill="none" stroke="#8fae72" stroke-opacity=".35" stroke-width="6"/>
+  <!-- leaf -->
+  <g transform="translate(256 250) scale(15.5) translate(-12 -12)">
+    <path fill="#b5d18f" d="M12 2C7 6 4 10.5 4 14.5A7.5 7.5 0 0 0 11.5 22h.5c.2-3-.4-6.6-2.6-10.1c2.7 2.7 4.3 6.1 4.7 10A7.5 7.5 0 0 0 20 14.5C20 10.5 17 6 12 2Z"/>
+  </g>
+  <!-- specimen tag -->
+  <rect x="146" y="408" width="220" height="52" rx="10" fill="#f2e8d0"/>
+  <text x="256" y="443" text-anchor="middle" font-family="Courier New, monospace" font-size="30" font-weight="bold" fill="#33302a" letter-spacing="4">No. 001</text>
+</svg>

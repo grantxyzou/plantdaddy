@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#16241b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PlantDaddy">
+  <title>PlantDaddy · Field Journal</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a id="back-btn" class="back-btn" href="#/" hidden>
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M15 5l-7 7 7 7"/></svg>
+      <span>Back</span>
+    </a>
+    <div class="page-title" role="heading" aria-level="1">
+      <svg id="title-leaf" class="brand-leaf" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2C7 6 4 10.5 4 14.5A7.5 7.5 0 0 0 11.5 22h.5c.2-3-.4-6.6-2.6-10.1c2.7 2.7 4.3 6.1 4.7 10A7.5 7.5 0 0 0 20 14.5C20 10.5 17 6 12 2Z"/></svg>
+      <span id="page-title-text">PlantDaddy</span>
+    </div>
+    <span class="topbar-spacer" aria-hidden="true"></span>
+  </header>
+
+  <main id="app" tabindex="-1">
+    <div class="loading">Opening the journal…</div>
+  </main>
+
+  <nav class="tabbar" aria-label="Main">
+    <a href="#/" data-nav="dashboard">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3.2 3 11h2.4v9.3h5.1v-6h3v6h5.1V11H21z"/></svg>
+      <span>Today</span>
+    </a>
+    <a href="#/plants" data-nav="plants">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2C7 6 4 10.5 4 14.5A7.5 7.5 0 0 0 11.5 22h.5c.2-3-.4-6.6-2.6-10.1c2.7 2.7 4.3 6.1 4.7 10A7.5 7.5 0 0 0 20 14.5C20 10.5 17 6 12 2Z"/></svg>
+      <span>Collection</span>
+    </a>
+    <a href="#/journal" data-nav="journal">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M5 3h13a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm1 2v14h12V5H6zm2 3h8v2H8V8zm0 4h8v2H8v-2z"/></svg>
+      <span>Journal</span>
+    </a>
+    <a href="#/settings" data-nav="settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 8a4 4 0 1 0 0 8a4 4 0 0 0 0-8Zm9.4 4a7.6 7.6 0 0 0-.1-1.2l2-1.6l-2-3.4l-2.4 1a7.6 7.6 0 0 0-2-1.2L16.5 3h-4l-.4 2.6a7.6 7.6 0 0 0-2 1.2l-2.4-1l-2 3.4l2 1.6a7.7 7.7 0 0 0 0 2.4l-2 1.6l2 3.4l2.4-1a7.6 7.6 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7.6 7.6 0 0 0 2-1.2l2.4 1l2-3.4l-2-1.6c.06-.4.1-.8.1-1.2Z"/></svg>
+      <span>Settings</span>
+    </a>
+  </nav>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+    }
+  </script>
+</body>
+</html>
