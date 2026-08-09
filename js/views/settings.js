@@ -3,6 +3,7 @@
 import { getSettings, saveSettings, listPlants, counts } from '../store.js';
 import { downloadCalendar } from '../ics.js';
 import { exportBackup, importBackup } from '../backup.js';
+import { checkForUpdate, forceRefresh } from '../update.js';
 import { el, mount, toast } from '../ui.js';
 
 export async function renderSettings(app) {
@@ -97,6 +98,30 @@ export async function renderSettings(app) {
         el('button', { onclick: () => importInput.click() }, '⬆ Import backup'),
       ),
       importInput,
+    ),
+
+    el('section', { class: 'settings-block specimen' },
+      el('h2', { class: 'on-card', style: 'margin-top:0' }, 'App version'),
+      el('p', { style: 'font-size:.9rem' },
+        'PlantDaddy updates itself whenever you open it with a connection. If it ever looks out of date, these force the issue.'),
+      el('div', { class: 'row-actions' },
+        el('button', {
+          onclick: async e => {
+            e.target.disabled = true;
+            await checkForUpdate();
+            toast('Checked — you’ll see a Refresh banner if anything is new.');
+            e.target.disabled = false;
+          },
+        }, '⟳ Check for updates'),
+        el('button', {
+          class: 'btn-danger btn-ghost',
+          onclick: async () => {
+            if (!window.confirm('Clear the app cache and reload?\n\nYour plants, logs and photos are NOT affected — only the cached app files.')) return;
+            await forceRefresh();
+          },
+        }, 'Force refresh'),
+      ),
+      el('p', { class: 'hint' }, 'Force refresh clears cached app files only. Your journal stays put.'),
     ),
 
     el('section', { class: 'settings-block' },

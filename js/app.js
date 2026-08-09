@@ -4,6 +4,7 @@
 
 import { seedIfNeeded } from './store.js';
 import { releaseBlobURLs } from './photos.js';
+import { initUpdates } from './update.js';
 import { setHeader } from './ui.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderCollection } from './views/collection.js';
@@ -57,6 +58,7 @@ async function route() {
 }
 
 async function boot() {
+  initUpdates();
   try {
     if (navigator.storage && navigator.storage.persist) {
       navigator.storage.persist().catch(() => {});
