@@ -1,9 +1,12 @@
 // "Today" — the daily screen: what needs water now, one-tap logging,
-// collection health at a glance, and action items for struggling plants.
+// collection health at a glance, and trackable action items for
+// struggling plants (Doctor's orders: to do vs attended).
 
-import { addLog, currentHealth, getSettings } from '../store.js';
+import { addLog, currentHealth, getSettings, latestPhoto, ackAdvice, unackAdvice } from '../store.js';
 import { collectionStatus, careStreak, updateBadge } from '../schedule.js';
 import { prefersFilteredWater } from '../care-guides.js';
+import { blobURL } from '../photos.js';
+import { plantThumb } from '../ui-thumb.js';
 import { el, mount, toast, dueBadge, healthChip, daysAgo } from '../ui.js';
 
 export async function renderDashboard(app) {
@@ -14,7 +17,10 @@ export async function renderDashboard(app) {
 
   const withHealth = [];
   for (const row of rows) {
-    withHealth.push({ ...row, health: await currentHealth(row.plant.id) });
+    const [health, photo] = await Promise.all([
+      currentHealth(row.plant.id), latestPhoto(row.plant.id),
+    ]);
+    withHealth.push({ ...row, health, photoURL: photo ? blobURL(photo.blob) : null });
   }
 
   const counts = { healthy: 0, watch: 0, attention: 0 };
@@ -27,11 +33,13 @@ export async function renderDashboard(app) {
   const upcoming = withHealth.filter(r => r.water.state === 'ok');
   const needsFert = withHealth.filter(r => r.fert.state === 'due');
   const struggling = withHealth.filter(r => r.health && r.health.status !== 'healthy');
+  const adviceTodo = struggling.filter(r => r.plant.adviceAckLogId !== r.health.id);
+  const adviceDone = struggling.filter(r => r.plant.adviceAckLogId === r.health.id);
 
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
-  mount(app, 
-    el('p', { class: 'mono muted', style: 'margin:.75rem 0 0; font-size:.75rem;' }, today.toUpperCase()),
+  mount(app,
+    el('p', { class: 'mono muted', style: 'margin:.75rem 0 0; font-size:.8rem;' }, today.toUpperCase()),
 
     // collection health strip
     el('div', { class: 'overview-strip' },
@@ -50,7 +58,7 @@ export async function renderDashboard(app) {
       : el('div', { class: 'allclear' },
           el('span', { class: 'big', 'aria-hidden': 'true' }, '🌿'),
           'All watered. The collection is content.',
-          el('div', { class: 'mono', style: 'font-size:.72rem; margin-top:.4rem;' },
+          el('div', { class: 'mono', style: 'font-size:.8rem; margin-top:.4rem;' },
             upcoming.length ? `next up: ${upcoming[0].plant.commonName} ${fmtDueIn(upcoming[0].water)}` : ''),
         ),
 
@@ -60,11 +68,28 @@ export async function renderDashboard(app) {
       ...needsFert.map(r => feedCard(r, app)),
     ] : null,
 
-    // action items for struggling plants
-    struggling.length ? [
-      el('h2', {}, 'Doctor’s orders'),
-      ...struggling.map(r => adviceCard(r)),
-    ] : null,
+    // action items for struggling plants — to do, then attended
+    (adviceTodo.length || adviceDone.length) ? el('h2', {}, `Doctor’s orders${adviceTodo.length ? ` (${adviceTodo.length} to do)` : ' — all attended'}`) : null,
+    adviceTodo.map(r => adviceCard(r, app)),
+    adviceDone.length ? el('div', { class: 'attended-list' },
+      adviceDone.map(r =>
+        el('div', { class: 'attended-item' },
+          el('span', { class: 'attended-check', 'aria-hidden': 'true' }, '✓'),
+          el('span', { class: 'attended-text' },
+            el('a', { href: `#/plant/${r.plant.id}` }, r.plant.commonName),
+            ` — attended ${daysAgo(r.plant.adviceAckTs)}`),
+          el('button', {
+            class: 'btn-ghost attended-undo',
+            'aria-label': `Reopen doctor's orders for ${r.plant.commonName}`,
+            onclick: async () => {
+              await unackAdvice(r.plant.id);
+              toast('Reopened — back on the to-do list.');
+              renderDashboard(app);
+            },
+          }, 'undo'),
+        ),
+      ),
+    ) : null,
 
     // what's coming
     upcoming.length && needsWater.length ? [
@@ -89,22 +114,27 @@ function fmtDueIn(water) {
 }
 
 function wateringCard(row, settings, app) {
-  const { plant, water, health } = row;
+  const { plant, water, health, photoURL } = row;
   const filtered = prefersFilteredWater(plant);
   return el('article', { class: 'specimen' },
     el('span', { class: 'spec-no' }, `No. ${plant.specimenNo}`),
-    el('div', { class: 'spec-head' },
-      el('a', { class: 'spec-latin latin', href: `#/plant/${plant.id}` }, plant.latinName),
-      el('span', { class: 'spec-common' }, plant.commonName),
+    el('div', { class: 'card-row' },
+      plantThumb(plant, photoURL),
+      el('div', { class: 'card-main' },
+        el('div', { class: 'spec-head' },
+          el('a', { class: 'spec-latin latin', href: `#/plant/${plant.id}` }, plant.latinName),
+          el('span', { class: 'spec-common' }, plant.commonName),
+        ),
+        el('div', { class: 'due-line' },
+          dueBadge(water),
+          health ? healthChip(health.status) : null,
+        ),
+        el('span', { class: 'mono muted', style: 'font-size:.8rem' },
+          water.hasLog ? `last watered ${daysAgo(water.anchorTs)}` : 'not logged yet'),
+      ),
     ),
-    el('div', { class: 'due-line' },
-      dueBadge(water),
-      health ? healthChip(health.status) : null,
-      el('span', { class: 'mono muted', style: 'font-size:.72rem' },
-        water.hasLog ? `last watered ${daysAgo(water.anchorTs)}` : 'not logged yet'),
-    ),
-    filtered ? el('p', { class: 'hint', style: 'margin:.4rem 0 0' }, '⚠ use filtered/distilled water for this one') : null,
-    plant.water?.notes ? el('p', { class: 'muted', style: 'font-size:.82rem; margin:.4rem 0 0' }, plant.water.notes) : null,
+    filtered ? el('p', { class: 'hint', style: 'margin:.5rem 0 0' }, '⚠ use filtered/distilled water for this one') : null,
+    plant.water?.notes ? el('p', { class: 'muted', style: 'font-size:.88rem; margin:.4rem 0 0' }, plant.water.notes) : null,
     el('div', { class: 'row-actions' },
       el('button', {
         class: 'btn-water',
@@ -112,7 +142,6 @@ function wateringCard(row, settings, app) {
           e.target.disabled = true;
           await addLog({ plantId: plant.id, type: 'water', method: filtered ? 'filtered' : settings.waterSource });
           toast(`💧 ${plant.commonName} watered — nice.`);
-          const { renderDashboard } = await import('./dashboard.js');
           renderDashboard(app);
         },
       }, '💧 Watered'),
@@ -122,15 +151,20 @@ function wateringCard(row, settings, app) {
 }
 
 function feedCard(row, app) {
-  const { plant, fert } = row;
+  const { plant, fert, photoURL } = row;
   return el('article', { class: 'specimen' },
     el('span', { class: 'spec-no' }, `No. ${plant.specimenNo}`),
-    el('div', { class: 'spec-head' },
-      el('a', { class: 'spec-latin latin', href: `#/plant/${plant.id}` }, plant.latinName),
-      el('span', { class: 'spec-common' }, plant.commonName),
+    el('div', { class: 'card-row' },
+      plantThumb(plant, photoURL),
+      el('div', { class: 'card-main' },
+        el('div', { class: 'spec-head' },
+          el('a', { class: 'spec-latin latin', href: `#/plant/${plant.id}` }, plant.latinName),
+          el('span', { class: 'spec-common' }, plant.commonName),
+        ),
+        el('p', { class: 'muted', style: 'font-size:.88rem; margin:.3rem 0 0' },
+          `${plant.fertilizer?.type || 'Fertilizer'} — every ${plant.fertilizer?.frequencyDays} days, last ${fert.hasLog ? daysAgo(fert.anchorTs) : 'never logged'}`),
+      ),
     ),
-    el('p', { class: 'muted', style: 'font-size:.85rem; margin:.4rem 0 0' },
-      `${plant.fertilizer?.type || 'Fertilizer'} — every ${plant.fertilizer?.frequencyDays} days, last ${fert.hasLog ? daysAgo(fert.anchorTs) : 'never logged'}`),
     el('div', { class: 'row-actions' },
       el('button', {
         class: 'btn-primary',
@@ -138,7 +172,6 @@ function feedCard(row, app) {
           e.target.disabled = true;
           await addLog({ plantId: plant.id, type: 'fertilizer', note: plant.fertilizer?.type || '' });
           toast(`🌿 ${plant.commonName} fed.`);
-          const { renderDashboard } = await import('./dashboard.js');
           renderDashboard(app);
         },
       }, '🌿 Fed it'),
@@ -146,17 +179,30 @@ function feedCard(row, app) {
   );
 }
 
-function adviceCard(row) {
-  const { plant, health } = row;
+function adviceCard(row, app) {
+  const { plant, health, photoURL } = row;
   return el('article', { class: `specimen advice-card ${health.status}` },
     el('div', { class: 'advice-title' }, `No. ${plant.specimenNo} · ${health.status === 'attention' ? 'needs attention' : 'keep an eye on'}`),
-    el('div', { class: 'spec-head' },
-      el('a', { class: 'spec-latin latin', href: `#/plant/${plant.id}/guide` }, plant.latinName),
-      el('span', { class: 'spec-common' }, plant.commonName),
+    el('div', { class: 'card-row' },
+      plantThumb(plant, photoURL),
+      el('div', { class: 'card-main' },
+        el('div', { class: 'spec-head' },
+          el('a', { class: 'spec-latin latin', href: `#/plant/${plant.id}/guide` }, plant.latinName),
+          el('span', { class: 'spec-common' }, plant.commonName),
+        ),
+        health.note ? el('p', { style: 'font-size:.92rem; margin:.3rem 0 0' }, health.note) : null,
+      ),
     ),
-    health.note ? el('p', { style: 'font-size:.9rem; margin:.4rem 0 0' }, health.note) : null,
     el('div', { class: 'row-actions' },
-      el('a', { class: 'btn', href: `#/plant/${plant.id}/guide` }, 'care guide →'),
+      el('button', {
+        class: 'btn-primary',
+        onclick: async () => {
+          await ackAdvice(plant.id, health.id, health.note || '');
+          toast(`✓ ${plant.commonName} attended to.`);
+          renderDashboard(app);
+        },
+      }, '✓ Mark attended'),
+      el('a', { class: 'btn btn-ghost', href: `#/plant/${plant.id}/guide` }, 'care guide →'),
     ),
   );
 }

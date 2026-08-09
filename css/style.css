@@ -184,6 +184,57 @@ a { color: var(--moss-bright); }
 .spec-latin:hover { text-decoration: underline; }
 .spec-common { font-size: .95rem; color: var(--card-ink-soft); }
 
+/* card face: latest photo / species reference / leaf placeholder */
+.card-row { display: flex; gap: .8rem; align-items: flex-start; }
+.card-main { flex: 1; min-width: 0; }
+.thumb {
+  width: 64px;
+  height: 64px;
+  flex: none;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 2px solid var(--parchment-edge);
+  background: var(--ink-green-2);
+}
+.thumb-placeholder { object-fit: contain; }
+
+/* reference photo in the care guide */
+.ref-photo { margin: .25rem 0 .75rem; }
+.ref-photo img {
+  width: 100%;
+  max-height: 280px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 2px solid var(--parchment-edge);
+}
+.ref-photo figcaption { font-size: .85rem; color: var(--card-ink-soft); margin-top: .35rem; }
+
+/* doctor's orders — attended list */
+.attended-list { margin: .25rem 0 1rem; }
+.attended-item {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .45rem .25rem;
+  border-bottom: 1px solid var(--ink-green-3);
+  font-size: .95rem;
+  color: var(--cream-soft);
+}
+.attended-item:last-child { border-bottom: none; }
+.attended-check {
+  flex: none;
+  width: 24px; height: 24px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: var(--ok);
+  color: #f0f6ef;
+  font-weight: 700;
+  font-size: .85rem;
+}
+.attended-text { flex: 1; min-width: 0; }
+.attended-text a { color: var(--cream); font-weight: 600; }
+.attended-undo { min-height: 36px; padding: .3rem .7rem; font-size: .85rem; }
+
 /* health chip */
 .chip {
   display: inline-flex;

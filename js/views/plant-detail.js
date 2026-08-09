@@ -7,6 +7,7 @@ import {
 } from '../store.js';
 import { waterStatus, fertilizerStatus, cadenceOf } from '../schedule.js';
 import { guideFor, prefersFilteredWater } from '../care-guides.js';
+import { referenceImage, wikiThumbAt } from '../species-images.js';
 import { compressImage, blobURL } from '../photos.js';
 import { el, mount, setHeader, toast, fmtDate, fmtDateTime, daysAgo, healthChip, dueBadge, confirmDialog } from '../ui.js';
 
@@ -148,9 +149,21 @@ async function statusTab(body, plant, app) {
 
 async function guideTab(body, plant) {
   const guide = guideFor(plant);
-  mount(body, 
+  const ref = await referenceImage(plant); // memoized; null when offline & uncached
+  mount(body,
     el('article', { class: 'specimen' },
       el('h2', { class: 'on-card', style: 'margin-top:0' }, 'What healthy looks like'),
+      ref && ref.thumb ? el('figure', { class: 'ref-photo' },
+        el('img', {
+          src: wikiThumbAt(ref.thumb, 640),
+          alt: `Reference photo of a healthy ${ref.title}`,
+          loading: 'lazy',
+          onerror: function () { this.closest('figure').remove(); },
+        }),
+        el('figcaption', {},
+          'Reference: healthy ', el('span', { class: 'latin' }, ref.title), ' · ',
+          el('a', { href: ref.page, target: '_blank', rel: 'noopener' }, 'photo via Wikipedia')),
+      ) : null,
       el('p', { style: 'font-size:.92rem' }, guide.healthyLooksLike),
       plant.baselinePhotoDescription ? el('p', { class: 'care-note' },
         el('strong', {}, `Baseline (${plant.baselineTs ? fmtDate(plant.baselineTs) : 'intake'}): `),
@@ -259,7 +272,7 @@ async function photosTab(body, plant, app) {
 
 // ————— History —————
 
-const TYPE_LABEL = { water: '💧 watered', soil: '🪴 soil', fertilizer: '🌿 fed', sunlight: '☀️ light', health: '⚕ health' };
+const TYPE_LABEL = { water: '💧 watered', soil: '🪴 soil', fertilizer: '🌿 fed', sunlight: '☀️ light', health: '⚕ health', note: '📝 note' };
 
 async function historyTab(body, plant, app) {
   const [logs, history] = await Promise.all([logsForPlant(plant.id), healthHistory(plant.id)]);

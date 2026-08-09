@@ -1,7 +1,10 @@
-// "Collection" — every specimen card, herbarium style.
+// "Collection" — every specimen card, herbarium style, with a face:
+// your latest photo of the plant (or a species reference shot).
 
-import { listPlants, currentHealth } from '../store.js';
+import { listPlants, currentHealth, latestPhoto } from '../store.js';
 import { waterStatus } from '../schedule.js';
+import { blobURL } from '../photos.js';
+import { plantThumb } from '../ui-thumb.js';
 import { el, mount, healthChip, dueBadge, daysAgo } from '../ui.js';
 
 export async function renderCollection(app) {
@@ -10,19 +13,26 @@ export async function renderCollection(app) {
 
   const cards = [];
   for (const plant of plants) {
-    const [health, water] = await Promise.all([currentHealth(plant.id), waterStatus(plant)]);
+    const [health, water, photo] = await Promise.all([
+      currentHealth(plant.id), waterStatus(plant), latestPhoto(plant.id),
+    ]);
     cards.push(
       el('article', { class: 'specimen' },
         el('span', { class: 'spec-no' }, `No. ${plant.specimenNo}`),
-        el('div', { class: 'spec-head' },
-          el('a', { class: 'spec-latin latin', href: `#/plant/${plant.id}` }, plant.latinName),
-          el('span', { class: 'spec-common' }, plant.commonName),
-        ),
-        el('div', { class: 'due-line' },
-          health ? healthChip(health.status) : null,
-          dueBadge(water),
-          el('span', { class: 'mono muted', style: 'font-size:.72rem' },
-            water.hasLog ? `watered ${daysAgo(water.anchorTs)}` : 'no water log yet'),
+        el('div', { class: 'card-row' },
+          plantThumb(plant, photo ? blobURL(photo.blob) : null),
+          el('div', { class: 'card-main' },
+            el('div', { class: 'spec-head' },
+              el('a', { class: 'spec-latin latin', href: `#/plant/${plant.id}` }, plant.latinName),
+              el('span', { class: 'spec-common' }, plant.commonName),
+            ),
+            el('div', { class: 'due-line' },
+              health ? healthChip(health.status) : null,
+              dueBadge(water),
+            ),
+            el('span', { class: 'mono muted', style: 'font-size:.8rem' },
+              water.hasLog ? `watered ${daysAgo(water.anchorTs)}` : 'no water log yet'),
+          ),
         ),
       ),
     );
@@ -37,7 +47,7 @@ export async function renderCollection(app) {
     archived.length ? [
       el('h2', {}, 'Archived'),
       ...archived.map(p =>
-        el('p', { class: 'muted', style: 'font-size:.85rem' },
+        el('p', { class: 'muted', style: 'font-size:.9rem' },
           el('a', { href: `#/plant/${p.id}`, class: 'latin' }, p.latinName),
           ` — No. ${p.specimenNo}`,
         )),
