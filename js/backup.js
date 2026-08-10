@@ -38,8 +38,11 @@ export async function importBackup(file) {
   const payload = JSON.parse(await file.text());
   if (payload.format !== FORMAT) throw new Error('Not a PlantDaddy backup file');
 
+  // Drafts are deliberately not exported — they're unsaved suggestions, and a
+  // restored one would point at photo ids from a different device.
   await Promise.all([
     idb.clear('plants'), idb.clear('logs'), idb.clear('photos'), idb.clear('settings'),
+    idb.clear('diagnoses'),
   ]);
   for (const p of payload.plants || []) await idb.put('plants', p);
   for (const l of payload.logs || []) await idb.put('logs', l);

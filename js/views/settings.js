@@ -32,16 +32,23 @@ export async function renderSettings(app) {
     el('option', { value: '60' }, '1 hour early'));
   lead.value = String(settings.leadTimeMinutes);
 
+  const aiDetail = el('select', { 'aria-label': 'AI check-up detail level' },
+    el('option', { value: 'brief' }, 'brief — verdict + top actions'),
+    el('option', { value: 'standard' }, 'standard'),
+    el('option', { value: 'detailed' }, 'detailed — fuller reasoning'));
+  aiDetail.value = settings.aiDetail;
+
   const save = async () => {
     await saveSettings({
       units: units.value,
       waterSource: waterSource.value,
       reminderHour: +reminderHour.value,
       leadTimeMinutes: +lead.value,
+      aiDetail: aiDetail.value,
     });
     toast('Preferences saved.');
   };
-  for (const s of [units, waterSource, reminderHour, lead]) s.addEventListener('change', save);
+  for (const s of [units, waterSource, reminderHour, lead, aiDetail]) s.addEventListener('change', save);
 
   const importInput = el('input', { type: 'file', accept: 'application/json,.json', style: 'display:none', 'aria-hidden': 'true', tabindex: '-1' });
   importInput.addEventListener('change', async () => {
@@ -128,6 +135,10 @@ export async function renderSettings(app) {
       el('h2', { class: 'on-card', style: 'margin-top:0' }, 'AI diagnosis'),
       el('p', { style: 'font-size:.9rem' },
         'The 🩺 buttons on each plant send that one photo (nothing else) to Anthropic’s Claude for a visual check-up. Results are suggestions, saved into the health history marked “AI”.'),
+      el('div', { class: 'field-row' },
+        field('how much detail', aiDetail, 'applies to the next check-up you run')),
+      el('p', { style: 'font-size:.9rem' },
+        'Where it can, the doctor draws numbered boxes on the photo showing what it’s describing — so you can check its reasoning instead of taking its word.'),
       el('p', { class: 'hint' },
         'Runs on the deployment owner’s Anthropic API key — set ANTHROPIC_API_KEY in the Vercel dashboard to enable it. Each check costs well under a cent; setting a spend limit in the Anthropic console is a good idea.'),
     ),

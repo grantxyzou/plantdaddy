@@ -1,7 +1,8 @@
-// Promise-based IndexedDB wrapper. Stores: plants, logs, photos, settings.
+// Promise-based IndexedDB wrapper.
+// Stores: plants, logs, photos, settings, diagnoses (unsaved AI check-ups).
 
 const DB_NAME = 'plantdaddy';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise = null;
 
@@ -26,6 +27,10 @@ export function openDB() {
       }
       if (!db.objectStoreNames.contains('settings')) {
         db.createObjectStore('settings', { keyPath: 'key' });
+      }
+      // v2: one pending, not-yet-saved AI assessment per plant.
+      if (!db.objectStoreNames.contains('diagnoses')) {
+        db.createObjectStore('diagnoses', { keyPath: 'plantId' });
       }
     };
     req.onsuccess = () => resolve(req.result);

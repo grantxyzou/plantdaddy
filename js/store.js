@@ -13,6 +13,7 @@ export const DEFAULT_SETTINGS = {
   seeded: false,
   lastOverdueDate: null,  // for the care streak
   streakStart: null,
+  aiDetail: 'standard',   // AI check-up length: brief | standard | detailed
 };
 
 // ————— settings —————
@@ -129,6 +130,10 @@ export async function addPhoto({ plantId, blob, note = '', ts = Date.now() }) {
 export async function photosForPlant(plantId) {
   const photos = await db.getAll('photos', 'byPlant', plantId);
   return photos.sort((a, b) => b.ts - a.ts);
+}
+
+export async function getPhoto(id) {
+  return db.get('photos', id);
 }
 
 export async function latestPhoto(plantId) {
