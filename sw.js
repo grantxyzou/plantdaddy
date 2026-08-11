@@ -1,8 +1,5 @@
 // Service worker.
 //
-// Design rule: staleness must be IMPOSSIBLE, and correctness must never
-// depend on a human remembering to bump a version number. So:
-//
 //   • navigations + → network-first with a short timeout. Online, you always
 //     same-origin     get the current code on the very first load; offline (or
 //     app code        on a slow link) it falls straight back to the cache.
@@ -10,10 +7,17 @@
 //
 // The app is ~120KB of text served with ETags, so revalidation is mostly
 // 304s and costs little. Cache is the offline safety net, never the source
-// of truth. CACHE below is just a housekeeping label — forgetting to bump
-// it can no longer strand anyone on old code.
+// of truth.
+//
+// This makes *serving* stale code impossible on any real load — but it does
+// nothing to make the app load in the first place. An installed iOS app
+// resumes from a snapshot without navigating, so something has to notice a
+// deploy and trigger the reload. That is js/update.js's job, via
+// /api/version. It is deliberately not this file's: watching sw.js for byte
+// changes only catches deploys that happen to touch sw.js, which put the
+// burden back on a human remembering to bump CACHE. CACHE is housekeeping.
 
-const CACHE = 'plantdaddy-v6';
+const CACHE = 'plantdaddy-v7';
 
 const SHELL = [
   './',
@@ -78,11 +82,16 @@ self.addEventListener('message', event => {
  */
 async function networkFirst(request, { navigate = false } = {}) {
   const cache = await caches.open(CACHE);
+  // Never store a URL carrying a query: the only same-origin ones are
+  // cache-busting probes, and each would leave a permanent cache entry — one
+  // per check, forever, in a quota shared with the photo journal. Reads use
+  // ignoreSearch, so nothing needs them stored.
+  const storable = !new URL(request.url).search;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), NAV_TIMEOUT_MS);
   try {
     const res = await fetch(request, { cache: 'no-cache', signal: controller.signal });
-    if (res && res.ok) cache.put(request, res.clone()).catch(() => {});
+    if (res && res.ok && storable) cache.put(request, res.clone()).catch(() => {});
     return res;
   } catch {
     const cached = await cache.match(request, { ignoreSearch: true });

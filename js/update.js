@@ -10,7 +10,7 @@ const CHECK_INTERVAL_MS = 30 * 60 * 1000;
 
 let registration = null;
 let reloading = false;
-let bootStamp = null; // identity of index.html when this page started
+let boot = null; // { source, value } — what the server was serving at boot
 
 /** Reload unless the user is mid-typing — then leave the banner up instead. */
 function safeReload() {
@@ -48,30 +48,57 @@ function applyWaiting() {
 }
 
 /**
- * Ask the server what index.html looks like right now. Catches the case where
- * a deploy happened while the app sat open for days and sw.js itself did not
- * change, so the worker's own update check sees nothing.
+ * What the server is serving right now.
+ *
+ * `/api/version` is the real answer: it changes on every deploy, including
+ * the common case where only js/*.js changed and neither sw.js nor
+ * index.html did. Watching index.html alone misses those completely — which
+ * is exactly how an installed app sits on old code for weeks.
+ *
+ * index.html is the fallback for static hosting with no functions. It is
+ * weaker for the same reason, but better than no check at all. No query
+ * string: a cache-busting URL would leave one permanent service-worker cache
+ * entry per check, in a quota shared with the photo journal.
  */
-async function deployedStamp() {
+async function currentVersion() {
   try {
-    const res = await fetch(`index.html?_v=${Date.now()}`, { cache: 'no-store' });
+    const res = await fetch('api/version', { cache: 'no-store' });
+    if (res.ok) {
+      const { version } = await res.json();
+      if (version) return { source: 'api', value: String(version) };
+    }
+  } catch { /* no function deployed, or offline — try the fallback */ }
+
+  try {
+    const res = await fetch('index.html', { cache: 'no-store' });
     if (!res.ok) return null;
-    return res.headers.get('etag') || res.headers.get('last-modified') || String((await res.text()).length);
+    const stamp = res.headers.get('etag') || res.headers.get('last-modified');
+    return { source: 'html', value: stamp || String((await res.text()).length) };
   } catch {
     return null;
   }
 }
 
-async function compareDeployedVersion() {
-  const now = await deployedStamp();
-  if (!now) return;              // offline — nothing to say
-  if (bootStamp === null) { bootStamp = now; return; }
-  if (now !== bootStamp) showBanner();
+/**
+ * Compare against boot. `autoReload` is for the moments the app comes back to
+ * the foreground — the natural point to pick up new code; elsewhere we only
+ * offer the banner.
+ */
+async function compareDeployedVersion({ autoReload = false } = {}) {
+  const now = await currentVersion();
+  if (!now) return;                       // offline — nothing to say
+  if (!boot) { boot = now; return; }
+  // Channel changed (the function went down, or came back): the two sources
+  // aren't comparable, so re-baseline rather than read it as a new deploy.
+  if (now.source !== boot.source) { boot = now; return; }
+  if (now.value === boot.value) return;
+  if (autoReload) safeReload();
+  else showBanner();
 }
 
 export async function checkForUpdate() {
   if (registration) await registration.update().catch(() => {});
-  await compareDeployedVersion();
+  await compareDeployedVersion({ autoReload: true });
 }
 
 /** Manual escape hatch: drop every cache and re-register. Never touches IndexedDB. */
@@ -94,11 +121,11 @@ export function initUpdates() {
 
   // Works with or without a service worker: remember what the server was
   // serving when we booted, then watch for it changing under us.
-  deployedStamp().then(s => { bootStamp = s; });
+  currentVersion().then(v => { if (!boot) boot = v; });
 
   if (!('serviceWorker' in navigator)) {
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') compareDeployedVersion();
+      if (document.visibilityState === 'visible') compareDeployedVersion({ autoReload: true });
     });
     return;
   }
@@ -127,15 +154,18 @@ export function initUpdates() {
     // The triggers that beat iOS's flaky update checks: a resumed home-screen
     // PWA often never navigates, so foregrounding is our real "page load".
     reg.update().catch(() => {});
-    setInterval(() => { reg.update().catch(() => {}); compareDeployedVersion(); }, CHECK_INTERVAL_MS);
+    setInterval(() => {
+      reg.update().catch(() => {});
+      compareDeployedVersion({ autoReload: document.visibilityState !== 'visible' });
+    }, CHECK_INTERVAL_MS);
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState !== 'visible') return;
       reg.update().catch(() => {});
-      applyWaiting();            // a worker that installed while we were away
-      compareDeployedVersion();  // ...or a deploy that did not touch sw.js
+      applyWaiting();                                 // a worker that installed while we were away
+      compareDeployedVersion({ autoReload: true });   // ...or a deploy that touched neither sw.js nor index.html
     });
     window.addEventListener('pageshow', e => {
-      if (e.persisted) { reg.update().catch(() => {}); compareDeployedVersion(); }
+      if (e.persisted) { reg.update().catch(() => {}); compareDeployedVersion({ autoReload: true }); }
     });
   }).catch(() => {});
 }
