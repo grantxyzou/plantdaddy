@@ -52,12 +52,26 @@ server-side code, needing `@anthropic-ai/sdk`); `vercel.json` included.
 ```sh
 python3 -m http.server 8321   # or any static server
 # open http://localhost:8321
-npm test                      # unit tests for api/diagnose.js (node --test, no installs needed)
+npm test                      # unit tests for api/ (node --test, no installs needed)
 ```
 
-A static server covers everything except `/api/diagnose`, which needs `vercel dev` or a
-deployment. `CACHE` in `sw.js` is a housekeeping label, not a correctness lever — navigations and
-app code are network-first, so forgetting to bump it can't strand anyone on stale code.
+A static server covers everything except `api/`, which needs `vercel dev` or a deployment.
+
+## Staying current
+
+Two halves, and they fail differently:
+
+- **Serving** — the service worker is network-first for navigations and same-origin code, so any
+  real load gets current files. `CACHE` in `sw.js` is a housekeeping label; forgetting to bump it
+  cannot serve stale code.
+- **Triggering** — but an installed iOS app resumes from a snapshot without ever navigating, so
+  something has to notice a deploy and reload. `js/update.js` polls `/api/version` (the commit
+  SHA, injected by Vercel) on foreground and every 30 minutes, and reloads when it differs.
+
+The trigger half is the one that's bitten us: watching `index.html` or `sw.js` for changes misses
+deploys that touch neither, which is most of them — the app's code is in `js/*.js`. `/api/version`
+changes on every deploy, so it can't miss one. On static hosting with no functions it falls back
+to `index.html`, which is weaker for exactly that reason.
 
 ## Install on iPhone
 
