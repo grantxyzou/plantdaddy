@@ -3,8 +3,13 @@
 // Sends a compressed photo + care context to /api/diagnose and renders the
 // structured assessment as a clearly AI-badged suggestion card. Saving the
 // result writes an ordinary health log (source:'ai'), which flows into
-// Doctor's orders exactly like a hand-written one. The photo is the only
-// data that ever leaves the device, and only when the user taps Diagnose.
+// Doctor's orders exactly like a hand-written one.
+//
+// What leaves the device, and only when the user taps Diagnose: the photo,
+// the plant's profile, its cadence, and the last ~20 care-log entries —
+// including notes the user typed. The log is what separates overwatering
+// from underwatering, so it earns its place, but the UI has to say so
+// rather than implying the photo travels alone.
 //
 // Two things make the result trustworthy rather than just confident-sounding:
 // observations can carry a box drawn on the photo, so you can check the claim
@@ -206,7 +211,7 @@ export function renderDiagnosisCard(d, { onSave, onDismiss, photoBlob, pendingSi
       onDismiss ? el('button', { class: 'btn-ghost', onclick: onDismiss }, 'dismiss') : null,
     ),
     el('p', { class: 'hint diag-fine' },
-      'Photo sent to Anthropic’s Claude for analysis · an AI suggestion, not a substitute for a professional.'),
+      'Photo + care log sent to Anthropic’s Claude for analysis · an AI suggestion, not a substitute for a professional.'),
   );
 }
 

@@ -177,7 +177,7 @@ function aiCheckupCard(plant, photo, diagSlot, onSaved, hasDraft = false) {
         : el('a', { class: 'btn', href: `#/plant/${plant.id}/photos` }, '📷 Add a photo'),
     ),
     photo ? el('p', { class: 'hint', style: 'margin-bottom:0' },
-      'Sends this one photo to Anthropic’s Claude for analysis. Each check costs the app owner well under a cent.') : null,
+      'Sends this photo, the plant’s details and its recent care log (including your notes) to Anthropic’s Claude. Each check costs the app owner well under a cent.') : null,
   );
 }
 
@@ -271,7 +271,7 @@ async function photosTab(body, plant, app) {
       fileInput,
       el('p', { class: 'hint', style: 'margin-bottom:0' },
         'Photos are resized on-device (max 1200px) and stored locally.',
-        latest ? ' Diagnose sends the latest photo to Anthropic’s Claude for analysis.' : ''),
+        latest ? ' Diagnose sends the latest photo, the plant’s details and its recent care log to Anthropic’s Claude.' : ''),
     ),
     diagSlot,
 
