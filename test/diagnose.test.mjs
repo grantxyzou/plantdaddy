@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHandler } from '../api/diagnose.js';
+import { createHandler, sanitizeRegion, sanitizeObservations } from '../api/diagnose.js';
 
 const IMAGE = 'a'.repeat(4000); // stands in for base64 JPEG data
 
@@ -25,7 +25,10 @@ const GOOD_DIAGNOSIS = {
   status: 'watch',
   confidence: 'medium',
   summary: 'Early signs of underwatering.',
-  observations: ['Curled leaf margins', 'Crispy brown tip on one leaf'],
+  observations: [
+    { text: 'Curled leaf margins', region: { x: 0.2, y: 0.3, w: 0.25, h: 0.2 } },
+    { text: 'Crispy brown tip on one leaf' },
+  ],
   likely_causes: ['Soil drying out between waterings'],
   recommended_actions: ['Water thoroughly until it drains', 'Check soil every 3 days'],
   caveat: 'Roots and soil moisture are not visible in the photo.',
@@ -100,7 +103,7 @@ test('returns diagnosis and builds the request correctly', async () => {
   }), res);
 
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(res.body.diagnosis, GOOD_DIAGNOSIS);
+  assert.deepEqual(res.body.diagnosis, { ...GOOD_DIAGNOSIS, detail: 'standard' });
   assert.equal(res.headers['cache-control'], 'no-store');
 
   const req = client.calls[0];
@@ -117,6 +120,117 @@ test('returns diagnosis and builds the request correctly', async () => {
   assert.match(textBlock.text, /every 5–7 days/);
   assert.match(textBlock.text, /crispy tips/);
   assert.match(textBlock.text, /water: filtered/);
+});
+
+// ————— detail levels —————
+
+async function schemaForRequest(detail) {
+  const client = clientReplying(textMessage(GOOD_DIAGNOSIS));
+  const res = fakeRes();
+  await createHandler({ getClient: () => client })(post({ image: IMAGE, detail }), res);
+  return { req: client.calls[0], res };
+}
+
+test('detail levels set the schema caps and the prompt guidance', async () => {
+  for (const [detail, maxItems] of [['brief', 2], ['standard', 4], ['detailed', 6]]) {
+    const { req, res } = await schemaForRequest(detail);
+    const props = req.output_config.format.schema.properties;
+    assert.equal(props.observations.maxItems, maxItems, `${detail} observations cap`);
+    assert.equal(props.likely_causes.maxItems, maxItems, `${detail} causes cap`);
+    assert.equal(props.recommended_actions.maxItems, maxItems, `${detail} actions cap`);
+    assert.match(req.system, /^- Length:/m, `${detail} prompt carries a length rule`);
+    assert.equal(res.body.diagnosis.detail, detail);
+  }
+});
+
+test('brief and detailed prompts differ', async () => {
+  const brief = (await schemaForRequest('brief')).req.system;
+  const detailed = (await schemaForRequest('detailed')).req.system;
+  assert.notEqual(brief, detailed);
+  assert.match(brief, /terse/i);
+  assert.match(detailed, /1–2 sentences/);
+});
+
+test('unknown or missing detail falls back to standard', async () => {
+  for (const detail of ['enormous', '', null, undefined, 42, '__proto__']) {
+    const { req, res } = await schemaForRequest(detail);
+    assert.equal(req.output_config.format.schema.properties.observations.maxItems, 4);
+    assert.equal(res.body.diagnosis.detail, 'standard');
+  }
+});
+
+test('output is truncated to the level cap even if the model overruns', async () => {
+  const chatty = {
+    ...GOOD_DIAGNOSIS,
+    observations: [{ text: 'one' }, { text: 'two' }, { text: 'three' }, { text: 'four' }],
+    recommended_actions: ['a', 'b', 'c', 'd', 'e'],
+  };
+  const client = clientReplying(textMessage(chatty));
+  const res = fakeRes();
+  await createHandler({ getClient: () => client })(post({ image: IMAGE, detail: 'brief' }), res);
+  assert.equal(res.body.diagnosis.observations.length, 2);
+  assert.equal(res.body.diagnosis.recommended_actions.length, 2);
+});
+
+// ————— region sanitizing —————
+// Coordinates become CSS percentages, so they are untrusted input.
+
+test('sanitizeRegion keeps a well-formed box', () => {
+  assert.deepEqual(sanitizeRegion({ x: 0.1, y: 0.2, w: 0.3, h: 0.4 }), { x: 0.1, y: 0.2, w: 0.3, h: 0.4 });
+});
+
+test('sanitizeRegion rejects junk', () => {
+  for (const bad of [null, undefined, 'nope', {}, { x: 0, y: 0, w: 0.5 },
+    { x: NaN, y: 0, w: 0.5, h: 0.5 }, { x: 0, y: 0, w: Infinity, h: 0.5 },
+    { x: '0.1', y: 0.1, w: 0.5, h: 0.5 }]) {
+    assert.equal(sanitizeRegion(bad), null, JSON.stringify(bad));
+  }
+});
+
+test('sanitizeRegion drops boxes too small to see', () => {
+  assert.equal(sanitizeRegion({ x: 0.5, y: 0.5, w: 0.01, h: 0.4 }), null);
+  assert.equal(sanitizeRegion({ x: 0.5, y: 0.5, w: 0.4, h: 0.001 }), null);
+});
+
+test('sanitizeRegion pulls an overhanging box back into frame', () => {
+  assert.deepEqual(sanitizeRegion({ x: 0.8, y: 0.9, w: 0.5, h: 0.4 }), { x: 0.8, y: 0.9, w: 0.2, h: 0.1 });
+  assert.deepEqual(sanitizeRegion({ x: -0.2, y: 0.1, w: 0.5, h: 0.3 }), { x: 0, y: 0.1, w: 0.5, h: 0.3 });
+});
+
+test('sanitizeRegion drops a box that clamps to nothing', () => {
+  assert.equal(sanitizeRegion({ x: 0.995, y: 0.2, w: 0.5, h: 0.5 }), null);
+});
+
+test('sanitizeObservations caps regions at 4 but keeps the text', () => {
+  const many = Array.from({ length: 6 }, (_, i) => ({ text: `obs ${i}`, region: { x: 0.1, y: 0.1, w: 0.2, h: 0.2 } }));
+  const out = sanitizeObservations(many, 6);
+  assert.equal(out.length, 6);
+  assert.equal(out.filter(o => o.region).length, 4);
+  assert.equal(out[5].text, 'obs 5');
+});
+
+test('sanitizeObservations tolerates plain strings and skips empties', () => {
+  const out = sanitizeObservations(['  spider mites  ', { text: '' }, { text: '  ' }, null, { text: 'leaf drop' }], 4);
+  assert.deepEqual(out, [{ text: 'spider mites' }, { text: 'leaf drop' }]);
+});
+
+test('a bad region does not cost the observation its text', async () => {
+  const client = clientReplying(textMessage({
+    ...GOOD_DIAGNOSIS,
+    observations: [{ text: 'Yellowing lower leaf', region: { x: 2, y: 2, w: 'wide', h: 0.3 } }],
+  }));
+  const res = fakeRes();
+  await createHandler({ getClient: () => client })(post({ image: IMAGE }), res);
+  assert.deepEqual(res.body.diagnosis.observations, [{ text: 'Yellowing lower leaf' }]);
+});
+
+test('invalid status or confidence degrades instead of throwing', async () => {
+  const client = clientReplying(textMessage({ ...GOOD_DIAGNOSIS, status: 'dying', confidence: 'certain' }));
+  const res = fakeRes();
+  await createHandler({ getClient: () => client })(post({ image: IMAGE }), res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.diagnosis.status, 'watch');
+  assert.equal(res.body.diagnosis.confidence, 'low');
 });
 
 // ————— model stop reasons —————

@@ -385,6 +385,65 @@ button:active { transform: translateY(1px); }
 }
 .diag-conf { font-size: .72rem; color: var(--card-ink-soft); }
 .diag-fine { font-size: .72rem; margin-bottom: 0; }
+.diag-pending { font-size: .7rem; color: var(--card-ink-soft); margin: .3rem 0 0; }
+
+/* The annotated photo: boxes are positioned in % of the figure, and the image
+   fills it exactly, so markers stay aligned at any width or aspect ratio. */
+.diag-photo {
+  position: relative;
+  display: block;
+  margin: .55rem 0 .2rem;
+  border-radius: 6px;
+  overflow: hidden;
+  line-height: 0;
+}
+.diag-photo img { width: 100%; height: auto; display: block; }
+/* Two classes deep on purpose: this has to out-specify `.specimen button`,
+   whose 44px min-height and parchment fill would both lie about the region. */
+.diag-photo .diag-box {
+  position: absolute;
+  box-sizing: border-box;
+  display: block;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  border: 2px solid var(--ai-bright);
+  border-radius: 4px;
+  cursor: pointer;
+  /* rings on both sides of the border keep the box legible over a dark leaf
+     or a blown-out window alike */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .65), inset 0 0 0 1px rgba(0, 0, 0, .45);
+  transition: box-shadow .12s ease, border-color .12s ease;
+}
+.diag-photo .diag-box:hover { background: transparent; }
+/* the marker must stay anchored to what it points at */
+.diag-photo .diag-box:active { transform: none; }
+.diag-box-n {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  font-family: var(--mono);
+  font-size: .62rem;
+  line-height: 1;
+  font-weight: 700;
+  padding: .16rem .32rem;
+  background: var(--ai-bright);
+  color: #1a1626;
+  border-radius: 3px 0 4px 0;
+}
+.diag-photo .diag-box.active, .diag-photo .diag-box:focus-visible {
+  border-color: #fff;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ai-bright), 0 0 0 4px rgba(0, 0, 0, .55);
+}
+.diag-approx { font-size: .7rem; margin: .1rem 0 .2rem; }
+.obs-list li::marker { font-family: var(--mono); font-weight: 700; color: var(--ai); }
+.obs-list li.has-box { cursor: pointer; }
+.obs-list li.active {
+  background: rgba(91, 74, 138, .14);
+  border-radius: 4px;
+  box-shadow: 0 0 0 .2rem rgba(91, 74, 138, .14);
+}
 .advice-title { font-family: var(--mono); font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--card-ink-soft); margin-bottom: .3rem; }
 .advice-list { margin: .4rem 0 0; padding-left: 1.2rem; font-size: .95rem; }
 .advice-list li { margin-bottom: .3rem; }

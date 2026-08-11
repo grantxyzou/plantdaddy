@@ -5,7 +5,7 @@ import {
   getPlant, addLog, logsForPlant, currentHealth, healthHistory,
   photosForPlant, addPhoto, deletePhoto, archivePlant, getSettings, latestPhoto,
 } from '../store.js';
-import { runDiagnosis, aiChip } from '../diagnose.js';
+import { runDiagnosis, restorePendingDiagnosis, getDraft, aiChip } from '../diagnose.js';
 import { waterStatus, fertilizerStatus, cadenceOf } from '../schedule.js';
 import { guideFor, prefersFilteredWater } from '../care-guides.js';
 import { referenceImage, wikiThumbAt } from '../species-images.js';
@@ -59,8 +59,9 @@ export async function renderPlantDetail(app, id, tab = 'status') {
 
 async function statusTab(body, plant, app) {
   const settings = await getSettings();
-  const [water, fert, logs, photo] = await Promise.all([
+  const [water, fert, logs, photo, draft] = await Promise.all([
     waterStatus(plant), fertilizerStatus(plant), logsForPlant(plant.id), latestPhoto(plant.id),
+    getDraft(plant.id),
   ]);
   const diagSlot = el('div');
   const lastOf = type => logs.find(l => l.type === type);
@@ -114,7 +115,7 @@ async function statusTab(body, plant, app) {
       noteForm('sunlight', 'e.g. moved to east window', 'Log light'),
     ),
 
-    aiCheckupCard(plant, photo, diagSlot, rerender),
+    aiCheckupCard(plant, photo, diagSlot, rerender, Boolean(draft)),
     diagSlot,
 
     el('article', { class: 'specimen' },
@@ -148,27 +149,31 @@ async function statusTab(body, plant, app) {
       ),
     ),
   );
+
+  if (draft) await restorePendingDiagnosis(diagSlot, plant, { latestPhoto: photo, onSaved: rerender });
 }
 
 // The AI check-up entry point: diagnoses the latest photo in context.
 // Shared by the Status tab (CTA card) and reused conceptually by Photos.
-function aiCheckupCard(plant, photo, diagSlot, onSaved) {
+function aiCheckupCard(plant, photo, diagSlot, onSaved, hasDraft = false) {
   return el('article', { class: 'specimen diagnosis-cta' },
     el('h2', { class: 'on-card', style: 'margin-top:0' }, '🩺 AI check-up'),
     el('p', { style: 'font-size:.92rem' },
-      photo
-        ? `Have the AI doctor look at the latest photo (${fmtDate(photo.ts)}) together with the care log, and suggest what ${plant.commonName} needs.`
-        : 'Add a photo first — then the AI doctor can assess it against the care log.'),
+      !photo
+        ? 'Add a photo first — then the AI doctor can assess it against the care log.'
+        : hasDraft
+          ? `An unsaved check-up is waiting below. Run another to re-assess the latest photo (${fmtDate(photo.ts)}).`
+          : `Have the AI doctor look at the latest photo (${fmtDate(photo.ts)}) together with the care log, and suggest what ${plant.commonName} needs.`),
     el('div', { class: 'row-actions' },
       photo
         ? el('button', {
-            class: 'btn-primary',
+            class: hasDraft ? 'btn' : 'btn-primary',
             onclick: e => {
               e.target.disabled = true;
-              runDiagnosis(diagSlot, plant, photo.blob, { onSaved })
+              runDiagnosis(diagSlot, plant, photo, { onSaved })
                 .finally(() => { e.target.disabled = false; });
             },
-          }, '🩺 Get AI check-up')
+          }, hasDraft ? '🩺 Re-run check-up' : '🩺 Get AI check-up')
         : el('a', { class: 'btn', href: `#/plant/${plant.id}/photos` }, '📷 Add a photo'),
     ),
     photo ? el('p', { class: 'hint', style: 'margin-bottom:0' },
@@ -225,7 +230,7 @@ async function guideTab(body, plant) {
 // ————— Photos —————
 
 async function photosTab(body, plant, app) {
-  const photos = await photosForPlant(plant.id);
+  const [photos, draft] = await Promise.all([photosForPlant(plant.id), getDraft(plant.id)]);
   const latest = photos[0];
   const oldest = photos[photos.length - 1];
   const diagSlot = el('div');
@@ -258,10 +263,10 @@ async function photosTab(body, plant, app) {
         latest ? el('button', {
           onclick: e => {
             e.target.disabled = true;
-            runDiagnosis(diagSlot, plant, latest.blob, { onSaved: () => renderPlantDetail(app, plant.id, 'photos') })
+            runDiagnosis(diagSlot, plant, latest, { onSaved: () => renderPlantDetail(app, plant.id, 'photos') })
               .finally(() => { e.target.disabled = false; });
           },
-        }, '🩺 Diagnose latest') : null,
+        }, draft ? '🩺 Re-diagnose latest' : '🩺 Diagnose latest') : null,
       ),
       fileInput,
       el('p', { class: 'hint', style: 'margin-bottom:0' },
@@ -310,6 +315,13 @@ async function photosTab(body, plant, app) {
       ),
     ] : null,
   );
+
+  if (draft) {
+    await restorePendingDiagnosis(diagSlot, plant, {
+      latestPhoto: latest,
+      onSaved: () => renderPlantDetail(app, plant.id, 'photos'),
+    });
+  }
 }
 
 // ————— History —————

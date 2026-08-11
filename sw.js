@@ -13,7 +13,7 @@
 // of truth. CACHE below is just a housekeeping label — forgetting to bump
 // it can no longer strand anyone on old code.
 
-const CACHE = 'plantdaddy-v5';
+const CACHE = 'plantdaddy-v6';
 
 const SHELL = [
   './',
