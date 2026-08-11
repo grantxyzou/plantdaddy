@@ -38,9 +38,20 @@ const CONFIDENCES = ['low', 'medium', 'high'];
 const MAX_REGIONS = 4;
 const MIN_SIDE = 0.02;
 
-function schemaFor(detail) {
-  const { maxItems } = DETAIL[detail];
-  const stringList = description => ({ type: 'array', maxItems, items: { type: 'string' }, description });
+// Structured outputs accept only a subset of JSON Schema. Two keywords this
+// schema wants are NOT in it, and both are enforced elsewhere instead:
+//
+//   • maxItems — "complex array constraints" are unsupported and the whole
+//     request 400s. The per-level caps live in the prompt and are enforced
+//     for real by sanitizeDiagnosis(), which truncates on the way out.
+//   • optional properties — `region` is listed in `required` and the model is
+//     told to send all-zeros when it can't localize; sanitizeRegion() drops
+//     those. Cheaper than discovering at runtime whether optional is allowed.
+//
+// Anything added here must be checked against the supported-keyword list —
+// an unsupported keyword fails every request, not just the edge case.
+function schemaFor() {
+  const stringList = description => ({ type: 'array', items: { type: 'string' }, description });
 
   return {
     type: 'object',
@@ -52,24 +63,23 @@ function schemaFor(detail) {
       summary: { type: 'string', description: 'One sentence: overall verdict a plant owner can act on.' },
       observations: {
         type: 'array',
-        maxItems,
-        description: 'What is actually visible in the photo, each optionally pinned to where it is.',
+        description: 'What is actually visible in the photo, each pinned to where it is when possible.',
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['text'],
+          required: ['text', 'region'],
           properties: {
             text: { type: 'string', description: 'What you see.' },
             region: {
               type: 'object',
               additionalProperties: false,
               required: ['x', 'y', 'w', 'h'],
-              description: 'Optional box around this feature, as fractions of the image (origin top-left).',
+              description: 'Box around this feature as fractions of the image (origin top-left). All zeros if you cannot localize it.',
               properties: {
-                x: { type: 'number', description: 'Left edge ÷ image width (0–1).' },
-                y: { type: 'number', description: 'Top edge ÷ image height (0–1).' },
-                w: { type: 'number', description: 'Box width ÷ image width.' },
-                h: { type: 'number', description: 'Box height ÷ image height.' },
+                x: { type: 'number', description: 'Left edge ÷ image width (0–1), or 0 if not localized.' },
+                y: { type: 'number', description: 'Top edge ÷ image height (0–1), or 0 if not localized.' },
+                w: { type: 'number', description: 'Box width ÷ image width, or 0 if not localized.' },
+                h: { type: 'number', description: 'Box height ÷ image height, or 0 if not localized.' },
               },
             },
           },
@@ -93,11 +103,11 @@ Rules:
 - caveat: one honest sentence about the photo's limits (e.g. roots and soil moisture not visible).
 
 Pointing at what you see:
-- An observation may carry "region": a rectangle around the exact feature you are describing, so the owner can check your work against the photo.
+- Every observation carries "region": a rectangle around the exact feature you are describing, so the owner can check your work against the photo.
 - Coordinates are FRACTIONS of the image with the origin at the TOP-LEFT corner. x = distance from the left edge ÷ image width; y = distance from the top edge ÷ image height; w = box width ÷ image width; h = box height ÷ image height. Every value is between 0 and 1.
 - Example: a browning leaf tip in the lower-right area → {"x": 0.62, "y": 0.71, "w": 0.14, "h": 0.09}.
-- Include a region ONLY when you are confident where the feature is. Omit it entirely for whole-plant impressions, or for anything inferred from the care log rather than seen.
-- Keep each box tight around the feature, but at least 0.03 wide and tall. At most ${MAX_REGIONS} observations may carry a region — choose the most telling ones.`;
+- When you CANNOT confidently point at the feature — a whole-plant impression, or something inferred from the care log rather than seen — set every coordinate to 0: {"x": 0, "y": 0, "w": 0, "h": 0}. A wrong box is worse than no box, so use the zeros whenever you are unsure.
+- Keep each real box tight around the feature, but at least 0.03 wide and tall. At most ${MAX_REGIONS} observations should carry a real box — choose the most telling ones and zero the rest.`;
 
 function careContext(plant = {}, cadence = {}, currentHealth = null, recentLogs = []) {
   const lines = [
@@ -234,7 +244,7 @@ export function createHandler({ getClient } = {}) {
         system: `${BASE_PROMPT}\n- ${DETAIL[detail].guidance}`,
         output_config: {
           effort: 'low',
-          format: { type: 'json_schema', schema: schemaFor(detail) },
+          format: { type: 'json_schema', schema: schemaFor() },
         },
         messages: [{
           role: 'user',
@@ -247,6 +257,12 @@ export function createHandler({ getClient } = {}) {
     } catch (err) {
       // Duck-typed on the SDK's error shape so the error path never needs the import.
       const status = typeof err?.status === 'number' ? err.status : null;
+      // Log why upstream refused — never the image or the care log. Without
+      // this an upstream 400 reaches the client as a bare "rejected the
+      // request" and the actual reason is only visible by bisecting deploys.
+      console.error('[diagnose] upstream error', JSON.stringify({
+        status, name: err?.name, message: String(err?.message || '').slice(0, 600),
+      }));
       if (status === 429) {
         const retryAfter = err.headers?.get?.('retry-after') ?? err.headers?.['retry-after'];
         if (retryAfter) res.setHeader('Retry-After', String(retryAfter));
