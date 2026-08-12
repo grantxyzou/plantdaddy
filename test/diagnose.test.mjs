@@ -131,15 +131,69 @@ async function schemaForRequest(detail) {
   return { req: client.calls[0], res };
 }
 
-test('detail levels set the schema caps and the prompt guidance', async () => {
-  for (const [detail, maxItems] of [['brief', 2], ['standard', 4], ['detailed', 6]]) {
-    const { req, res } = await schemaForRequest(detail);
-    const props = req.output_config.format.schema.properties;
-    assert.equal(props.observations.maxItems, maxItems, `${detail} observations cap`);
-    assert.equal(props.likely_causes.maxItems, maxItems, `${detail} causes cap`);
-    assert.equal(props.recommended_actions.maxItems, maxItems, `${detail} actions cap`);
+// Structured outputs reject unsupported JSON Schema keywords with a 400 on
+// EVERY request — this cost a production outage once. `maxItems` was the
+// culprit; the guard covers the whole documented-unsupported class so the
+// next one doesn't have to be discovered the same way.
+const UNSUPPORTED_KEYWORDS = [
+  'maxItems', 'minItems', 'uniqueItems', 'contains',
+  'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf',
+  'minLength', 'maxLength', 'pattern',
+  'minProperties', 'maxProperties',
+];
+
+function walkSchema(node, visit, path = '$') {
+  if (!node || typeof node !== 'object') return;
+  visit(node, path);
+  for (const [key, value] of Object.entries(node)) {
+    if (value && typeof value === 'object') walkSchema(value, visit, `${path}.${key}`);
+  }
+}
+
+test('schema uses no JSON Schema keyword structured outputs rejects', async () => {
+  const { req } = await schemaForRequest('standard');
+  const found = [];
+  walkSchema(req.output_config.format.schema, (node, path) => {
+    for (const kw of UNSUPPORTED_KEYWORDS) {
+      if (Object.hasOwn(node, kw)) found.push(`${path}.${kw}`);
+    }
+  });
+  assert.deepEqual(found, [], `unsupported keywords would 400 every request: ${found.join(', ')}`);
+});
+
+test('every object in the schema is closed and fully required', async () => {
+  const { req } = await schemaForRequest('standard');
+  walkSchema(req.output_config.format.schema, (node, path) => {
+    if (node.type !== 'object') return;
+    assert.equal(node.additionalProperties, false, `${path} must set additionalProperties:false`);
+    // Optional properties are not relied on: every declared property is required.
+    assert.deepEqual(
+      [...Object.keys(node.properties || {})].sort(),
+      [...(node.required || [])].sort(),
+      `${path} must list every property as required`,
+    );
+  });
+});
+
+test('detail levels carry prompt guidance and cap the returned output', async () => {
+  for (const [detail, cap] of [['brief', 2], ['standard', 4], ['detailed', 6]]) {
+    const chatty = {
+      ...GOOD_DIAGNOSIS,
+      observations: Array.from({ length: 8 }, (_, i) => ({ text: `obs ${i}` })),
+      likely_causes: Array.from({ length: 8 }, (_, i) => `cause ${i}`),
+      recommended_actions: Array.from({ length: 8 }, (_, i) => `action ${i}`),
+    };
+    const client = clientReplying(textMessage(chatty));
+    const res = fakeRes();
+    await createHandler({ getClient: () => client })(post({ image: IMAGE, detail }), res);
+    const req = client.calls[0];
+
     assert.match(req.system, /^- Length:/m, `${detail} prompt carries a length rule`);
     assert.equal(res.body.diagnosis.detail, detail);
+    // The cap is enforced on the way out, since the schema can't express it.
+    assert.equal(res.body.diagnosis.observations.length, cap, `${detail} observations cap`);
+    assert.equal(res.body.diagnosis.likely_causes.length, cap, `${detail} causes cap`);
+    assert.equal(res.body.diagnosis.recommended_actions.length, cap, `${detail} actions cap`);
   }
 });
 
@@ -154,8 +208,8 @@ test('brief and detailed prompts differ', async () => {
 test('unknown or missing detail falls back to standard', async () => {
   for (const detail of ['enormous', '', null, undefined, 42, '__proto__']) {
     const { req, res } = await schemaForRequest(detail);
-    assert.equal(req.output_config.format.schema.properties.observations.maxItems, 4);
     assert.equal(res.body.diagnosis.detail, 'standard');
+    assert.match(req.system, /at most 4 items per list/);
   }
 });
 
@@ -212,6 +266,20 @@ test('sanitizeObservations caps regions at 4 but keeps the text', () => {
 test('sanitizeObservations tolerates plain strings and skips empties', () => {
   const out = sanitizeObservations(['  spider mites  ', { text: '' }, { text: '  ' }, null, { text: 'leaf drop' }], 4);
   assert.deepEqual(out, [{ text: 'spider mites' }, { text: 'leaf drop' }]);
+});
+
+test('the all-zeros sentinel means "could not localize", not a box', async () => {
+  // `region` is required by the schema, so the model signals "no box" with
+  // zeros rather than omitting the field.
+  assert.equal(sanitizeRegion({ x: 0, y: 0, w: 0, h: 0 }), null);
+  const out = sanitizeObservations([
+    { text: 'Inferred from the care log', region: { x: 0, y: 0, w: 0, h: 0 } },
+    { text: 'Crispy tip, upper left', region: { x: 0.1, y: 0.1, w: 0.2, h: 0.2 } },
+  ], 4);
+  assert.deepEqual(out, [
+    { text: 'Inferred from the care log' },
+    { text: 'Crispy tip, upper left', region: { x: 0.1, y: 0.1, w: 0.2, h: 0.2 } },
+  ]);
 });
 
 test('a bad region does not cost the observation its text', async () => {

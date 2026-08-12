@@ -142,12 +142,19 @@ function badgeRow(...extra) {
  * and tapping either side highlights the pair. Observations without a region
  * still get a number — the sequence stays honest about what was localized.
  */
+// One predicate for "this observation gets a box", used by both the marker
+// and the list item — they must never disagree about which items are
+// clickable. The server drops degenerate regions, but don't rely on it: the
+// model signals "could not localize" with an all-zeros box, and drawing one
+// would put an invisible marker on the photo.
+const isDrawable = o => Boolean(o.region) && o.region.w > 0.01 && o.region.h > 0.01;
+
 function observationSection(observations, photoBlob) {
   const items = observations.map((o, i) =>
-    el('li', { class: o.region ? 'has-box' : null, 'data-idx': String(i) }, o.text));
+    el('li', { class: isDrawable(o) ? 'has-box' : null, 'data-idx': String(i) }, o.text));
 
   const boxes = observations.map((o, i) => {
-    if (!o.region) return null;
+    if (!isDrawable(o)) return null;
     const { x, y, w, h } = o.region;
     return el('button', {
       type: 'button',
